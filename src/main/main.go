@@ -3,65 +3,93 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"github.com/gocql/gocql"
-	"io/ioutil"
+	_ "github.com/lib/pq"
 	"log"
 	"os"
-	"path/filepath"
-	"sort"
 	"strings"
-	"time"
 )
 
-func preprocess(dbName string, sql string) string {
+type dbDriver interface {
+	Connect() error
+	Disconnect()
+	Exec(sql string) error
+	CreateDatabase(dbName string, dbUser string, dbPass string) error
+}
+
+func preprocess(dbName, dbUser, dbPass string, sql string) string {
 	text := strings.Replace(sql, "${DB_NAME}", dbName, -1)
+	text = strings.Replace(text, "${DB_USER}", dbUser, -1)
+	text = strings.Replace(text, "${DB_PASS}", dbPass, -1)
 	fmt.Println(text)
 	return text
 }
 
+func usage() {
+	fmt.Println("Usage: database-init [postgres|cassandra|dryrun] db_name init_scripts_folder [db_user db_pass]")
+}
+
 func main() {
-	if len(os.Args) != 3 {
-		fmt.Println("Usage: cassandra-init db_name init_scripts_folder")
+	l := len(os.Args)
+	if l != 4 && l != 6 {
+		usage()
 		return
 	}
-	dbName := os.Args[1]
-	initScriptsFolder := os.Args[2]
 
-	cluster := gocql.NewCluster("127.0.0.1")
-	cluster.Timeout = time.Minute
-	cluster.Consistency = gocql.Quorum
-	session, err := cluster.CreateSession()
+	var driver dbDriver
+
+	switch os.Args[1] {
+	case "cassandra":
+		fmt.Println("Using Cassandra db driver...")
+		driver = &cassandraDriver{}
+	case "postgres":
+		fmt.Println("Using Postgres db driver...")
+		driver = &postgresDriver{}
+	case "dryrun":
+		fmt.Println("Dryrun...")
+	default:
+		usage()
+		return
+	}
+
+	dbName := os.Args[2]
+	initScriptsFolder := os.Args[3]
+
+	var dbUser, dbPass string
+	if l == 6 {
+		dbUser = os.Args[4]
+		dbPass = os.Args[5]
+	}
+
+	if driver != nil {
+		err := driver.Connect()
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer driver.Disconnect()
+
+		err = driver.CreateDatabase(dbName, dbUser, dbPass)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	files, err := buildFileList(initScriptsFolder, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer session.Close()
-
-	if err := session.Query(preprocess(dbName, "DROP KEYSPACE IF EXISTS ${DB_NAME}")).Exec(); err != nil {
-		log.Fatal(err)
-	}
-
-	if err = session.Query(preprocess(dbName, "CREATE KEYSPACE ${DB_NAME} WITH REPLICATION = { 'class': 'SimpleStrategy','replication_factor': 1} AND DURABLE_WRITES =  true")).Exec(); err != nil {
-		log.Fatal(err)
-	}
-
-	files, err := ioutil.ReadDir(initScriptsFolder)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	sort.Slice(files, func(i, j int) bool {
-		return files[i].Name() < files[j].Name()
-	})
 
 	for _, file := range files {
-		fmt.Printf("Executing statements from %v...\n", file.Name())
-		statements, err := extractStatements(filepath.Join(initScriptsFolder, file.Name()))
+		fmt.Printf("Executing statements from %v...\n", file)
+		statements, err := extractStatements(file)
 		if err != nil {
 			log.Fatal(err)
 		}
 		for _, statement := range statements {
-			if err = session.Query(preprocess(dbName, statement)).Exec(); err != nil {
-				log.Fatal(err)
+			sql := preprocess(dbName, dbUser, dbPass, statement)
+			if driver != nil {
+				if err = driver.Exec(sql); err != nil {
+					log.Fatal(err)
+				}
 			}
 		}
 	}
@@ -78,23 +106,39 @@ func extractStatements(fileName string) ([]string, error) {
 
 	scanner := bufio.NewScanner(f)
 	var sb strings.Builder
+	functionMode := false
 	for scanner.Scan() {
-		text := strings.TrimSpace(scanner.Text())
-		if len(text) == 0 || strings.HasPrefix(text, "--") {
-			continue
+		scanned := scanner.Text()
+		text := strings.TrimSpace(scanned)
+		if strings.Contains(text, "$$") {
+			functionMode = !functionMode
 		}
-		if strings.Contains(text, ";") {
-			text = strings.Replace(text, ";", "", -1)
-			sb.WriteString(text)
-			result = append(result, sb.String())
-			sb.Reset()
+		if functionMode {
+			sb.WriteString(scanned)
+			sb.WriteRune('\n')
 		} else {
-			sb.WriteString(text)
+			if len(text) == 0 || strings.HasPrefix(text, "--") {
+				continue
+			}
+			if strings.Contains(text, ";") {
+				scanned = strings.Replace(scanned, ";", "", -1)
+				sb.WriteString(scanned)
+				result = append(result, sb.String())
+				sb.Reset()
+			} else {
+				sb.WriteString(scanned)
+				sb.WriteRune('\n')
+			}
 		}
 	}
 
 	if err := scanner.Err(); err != nil {
 		return nil, err
+	}
+
+	last := sb.String()
+	if len(last) > 0 {
+		result = append(result, last)
 	}
 
 	return result, nil

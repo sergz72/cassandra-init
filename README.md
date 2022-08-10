@@ -1,7 +1,7 @@
-# cassandra-init
+# database-init
 
-This application allows to init Cassandra database using init scripts.
+This application allows to init Cassandra or PostgreSQL database using init scripts.
 
-Usage: cassandra-init db_name init_scripts_folder
+Usage: database-init db_name init_scripts_folder
 
 Keyspace db_name will be created and all cql scripts from init_scripts_folder will be executed sequentially in alphabetical order.
