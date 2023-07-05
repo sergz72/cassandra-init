@@ -61,5 +61,5 @@ func (d *postgresDriver) CreateDatabase(dbName string, dbUser string, dbPass str
 		return err
 	}
 	d.Disconnect()
-	return d.connect("host=127.0.0.1 port=5432 user=postgres sslmode=disable dbname=" + dbName)
+	return d.connect(fmt.Sprintf("host=%v port=5432 user=postgres sslmode=disable dbname=%v", d.host, dbName))
 }
