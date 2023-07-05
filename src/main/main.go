@@ -55,7 +55,7 @@ func main() {
 	initScriptsFolder := os.Args[4]
 
 	var dbUser, dbPass string
-	if l == 6 {
+	if l == 7 {
 		dbUser = os.Args[5]
 		dbPass = os.Args[6]
 	}
