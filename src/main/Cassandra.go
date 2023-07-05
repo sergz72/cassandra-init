@@ -6,11 +6,16 @@ import (
 )
 
 type cassandraDriver struct {
+	host    string
 	session *gocql.Session
 }
 
+func newCassandraDriver(host string) *cassandraDriver {
+	return &cassandraDriver{host: host}
+}
+
 func (d *cassandraDriver) Connect() error {
-	cluster := gocql.NewCluster("127.0.0.1")
+	cluster := gocql.NewCluster(d.host)
 	cluster.Timeout = time.Minute
 	cluster.Consistency = gocql.Quorum
 	var err error

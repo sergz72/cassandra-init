@@ -2,10 +2,16 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 )
 
 type postgresDriver struct {
-	db *sql.DB
+	host string
+	db   *sql.DB
+}
+
+func newPostgresDriver(host string) *postgresDriver {
+	return &postgresDriver{host: host}
 }
 
 func (d *postgresDriver) connect(psqlInfo string) error {
@@ -15,7 +21,7 @@ func (d *postgresDriver) connect(psqlInfo string) error {
 }
 
 func (d *postgresDriver) Connect() error {
-	return d.connect("host=127.0.0.1 port=5432 user=postgres sslmode=disable")
+	return d.connect(fmt.Sprintf("host=%v port=5432 user=postgres sslmode=disable", d.host))
 }
 
 func (d *postgresDriver) Disconnect() {

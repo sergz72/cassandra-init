@@ -25,12 +25,12 @@ func preprocess(dbName, dbUser, dbPass string, sql string) string {
 }
 
 func usage() {
-	fmt.Println("Usage: database-init [postgres|cassandra|dryrun] db_name init_scripts_folder [db_user db_pass]")
+	fmt.Println("Usage: database-init [postgres|cassandra|dryrun] host db_name init_scripts_folder [db_user db_pass]")
 }
 
 func main() {
 	l := len(os.Args)
-	if l != 4 && l != 6 {
+	if l != 5 && l != 7 {
 		usage()
 		return
 	}
@@ -40,10 +40,10 @@ func main() {
 	switch os.Args[1] {
 	case "cassandra":
 		fmt.Println("Using Cassandra db driver...")
-		driver = &cassandraDriver{}
+		driver = newCassandraDriver(os.Args[2])
 	case "postgres":
 		fmt.Println("Using Postgres db driver...")
-		driver = &postgresDriver{}
+		driver = newPostgresDriver(os.Args[2])
 	case "dryrun":
 		fmt.Println("Dryrun...")
 	default:
@@ -51,13 +51,13 @@ func main() {
 		return
 	}
 
-	dbName := os.Args[2]
-	initScriptsFolder := os.Args[3]
+	dbName := os.Args[3]
+	initScriptsFolder := os.Args[4]
 
 	var dbUser, dbPass string
 	if l == 6 {
-		dbUser = os.Args[4]
-		dbPass = os.Args[5]
+		dbUser = os.Args[5]
+		dbPass = os.Args[6]
 	}
 
 	if driver != nil {
