@@ -27,8 +27,22 @@ func (d *postgresDriver) Exec(sql string) error {
 	return err
 }
 
+func (d *postgresDriver) Query(sql string) (*sql.Rows, error) {
+	return d.db.Query(sql)
+}
+
 func (d *postgresDriver) CreateDatabase(dbName string, dbUser string, dbPass string) error {
-	err := d.Exec(preprocess(dbName, dbUser, dbPass, "CREATE USER ${DB_USER} WITH ENCRYPTED PASSWORD '${DB_PASS}'"))
+	rows, err := d.Query(preprocess(dbName, dbUser, dbPass, "SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'"))
+	if err != nil {
+		return err
+	}
+	if !rows.Next() {
+		err = d.Exec(preprocess(dbName, dbUser, dbPass, "CREATE USER ${DB_USER} WITH ENCRYPTED PASSWORD '${DB_PASS}'"))
+		if err != nil {
+			return err
+		}
+	}
+	err = d.Exec(preprocess(dbName, dbUser, dbPass, "DROP DATABASE IF EXISTS ${DB_NAME}"))
 	if err != nil {
 		return err
 	}
