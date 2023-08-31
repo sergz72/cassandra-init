@@ -2,10 +2,12 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	_ "github.com/lib/pq"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -43,7 +45,11 @@ func main() {
 		driver = newCassandraDriver(os.Args[2])
 	case "postgres":
 		fmt.Println("Using Postgres db driver...")
-		driver = newPostgresDriver(os.Args[2])
+		host, port, err := parseHostPort(os.Args[2], 5432)
+		if err != nil {
+			log.Fatal(err)
+		}
+		driver = newPostgresDriver(host, port)
 	case "dryrun":
 		fmt.Println("Dryrun...")
 	default:
@@ -93,6 +99,30 @@ func main() {
 			}
 		}
 	}
+}
+
+func parseHostPort(hostPort string, defaultPort int) (string, int, error) {
+	parts := strings.Split(hostPort, ":")
+	switch len(parts) {
+	case 1:
+		return hostPort, defaultPort, nil
+	case 2:
+		port, err := parsePort(parts[1])
+		return parts[0], port, err
+	default:
+		return "", defaultPort, errors.New("invalid host name")
+	}
+}
+
+func parsePort(port string) (int, error) {
+	p, err := strconv.ParseInt(port, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	if p <= 0 || p > 65535 {
+		return 0, errors.New("port value is out of range")
+	}
+	return int(p), nil
 }
 
 func extractStatements(fileName string) ([]string, error) {
