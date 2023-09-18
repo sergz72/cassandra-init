@@ -10,15 +10,16 @@ type postgresDriver struct {
 	port          int
 	adminUser     string
 	adminPassword *string
+	adminDB       *string
 	db            *sql.DB
 }
 
-func newPostgresDriver(host string, port int, adminUser, adminPassword *string) *postgresDriver {
+func newPostgresDriver(host string, port int, adminUser, adminPassword, adminDB *string) *postgresDriver {
 	admin := "postgres"
 	if adminUser != nil {
 		admin = *adminUser
 	}
-	return &postgresDriver{host: host, port: port, adminUser: admin, adminPassword: adminPassword}
+	return &postgresDriver{host: host, port: port, adminUser: admin, adminPassword: adminPassword, adminDB: adminDB}
 }
 
 func (d *postgresDriver) connect(psqlInfo string) error {
@@ -28,7 +29,7 @@ func (d *postgresDriver) connect(psqlInfo string) error {
 }
 
 func (d *postgresDriver) Connect() error {
-	return d.connectTo(nil)
+	return d.connectTo(d.adminDB)
 }
 
 func (d *postgresDriver) connectTo(dbName *string) error {

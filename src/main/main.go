@@ -27,17 +27,14 @@ func preprocess(dbName, dbUser, dbPass string, sql string) string {
 }
 
 func usage() {
-	fmt.Println("Usage: database-init [/adminUser adminUserName][/adminPassword adminPassword][postgres|cassandra|dryrun] host db_name init_scripts_folder [db_user db_pass]")
+	fmt.Println("Usage: database-init [/adminUser adminUserName][/adminPassword adminPassword][/adminDB adminDatabaseName][postgres|cassandra|dryrun] host db_name init_scripts_folder [db_user db_pass]")
 }
 
 func main() {
 	l := len(os.Args)
-	if l < 5 {
-		usage()
-		return
-	}
 	var adminUser *string
 	var adminPassword *string
+	var adminDB *string
 	argIdx := 1
 forLabel:
 	for {
@@ -52,6 +49,10 @@ forLabel:
 			l -= 2
 		case "/adminPassword":
 			adminPassword = &os.Args[argIdx+1]
+			argIdx += 2
+			l -= 2
+		case "/adminDB":
+			adminDB = &os.Args[argIdx+1]
 			argIdx += 2
 			l -= 2
 		default:
@@ -76,7 +77,7 @@ forLabel:
 		if err != nil {
 			log.Fatal(err)
 		}
-		driver = newPostgresDriver(host, port, adminUser, adminPassword)
+		driver = newPostgresDriver(host, port, adminUser, adminPassword, adminDB)
 	case "dryrun":
 		fmt.Println("Dryrun...")
 	default:
