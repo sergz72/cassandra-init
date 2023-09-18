@@ -69,10 +69,10 @@ forLabel:
 	switch os.Args[argIdx] {
 	case "cassandra":
 		fmt.Println("Using Cassandra db driver...")
-		driver = newCassandraDriver(os.Args[2])
+		driver = newCassandraDriver(os.Args[argIdx+1])
 	case "postgres":
 		fmt.Println("Using Postgres db driver...")
-		host, port, err := parseHostPort(os.Args[2], 5432)
+		host, port, err := parseHostPort(os.Args[argIdx+1], 5432)
 		if err != nil {
 			log.Fatal(err)
 		}
