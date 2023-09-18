@@ -38,7 +38,7 @@ func main() {
 	argIdx := 1
 forLabel:
 	for {
-		if l < argIdx+2 {
+		if len(os.Args) < argIdx+2 {
 			usage()
 			return
 		}
