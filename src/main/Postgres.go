@@ -6,13 +6,19 @@ import (
 )
 
 type postgresDriver struct {
-	host string
-	port int
-	db   *sql.DB
+	host          string
+	port          int
+	adminUser     string
+	adminPassword *string
+	db            *sql.DB
 }
 
-func newPostgresDriver(host string, port int) *postgresDriver {
-	return &postgresDriver{host: host, port: port}
+func newPostgresDriver(host string, port int, adminUser, adminPassword *string) *postgresDriver {
+	admin := "postgres"
+	if adminUser != nil {
+		admin = *adminUser
+	}
+	return &postgresDriver{host: host, port: port, adminUser: admin, adminPassword: adminPassword}
 }
 
 func (d *postgresDriver) connect(psqlInfo string) error {
@@ -22,7 +28,18 @@ func (d *postgresDriver) connect(psqlInfo string) error {
 }
 
 func (d *postgresDriver) Connect() error {
-	return d.connect(fmt.Sprintf("host=%v port=%v user=postgres sslmode=disable", d.host, d.port))
+	return d.connectTo(nil)
+}
+
+func (d *postgresDriver) connectTo(dbName *string) error {
+	connectString := fmt.Sprintf("host=%v port=%v user=%v sslmode=disable", d.host, d.port, d.adminUser)
+	if dbName != nil {
+		connectString += fmt.Sprintf(" dbname=%v", *dbName)
+	}
+	if d.adminPassword != nil {
+		connectString += fmt.Sprintf(" password=%v", *d.adminPassword)
+	}
+	return d.connect(connectString)
 }
 
 func (d *postgresDriver) Disconnect() {
@@ -62,5 +79,5 @@ func (d *postgresDriver) CreateDatabase(dbName string, dbUser string, dbPass str
 		return err
 	}
 	d.Disconnect()
-	return d.connect(fmt.Sprintf("host=%v port=%v user=postgres sslmode=disable dbname=%v", d.host, d.port, dbName))
+	return d.connectTo(&dbName)
 }

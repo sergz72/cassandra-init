@@ -27,11 +27,34 @@ func preprocess(dbName, dbUser, dbPass string, sql string) string {
 }
 
 func usage() {
-	fmt.Println("Usage: database-init [postgres|cassandra|dryrun] host db_name init_scripts_folder [db_user db_pass]")
+	fmt.Println("Usage: database-init [/adminUser adminUserName][/adminPassword adminPassword][postgres|cassandra|dryrun] host db_name init_scripts_folder [db_user db_pass]")
 }
 
 func main() {
 	l := len(os.Args)
+	if l < 5 {
+		usage()
+		return
+	}
+	var adminUser *string
+	var adminPassword *string
+	argIdx := 1
+forLabel:
+	for {
+		switch os.Args[argIdx] {
+		case "/adminUser":
+			adminUser = &os.Args[argIdx]
+			argIdx++
+			l--
+		case "/adminPassword":
+			adminPassword = &os.Args[argIdx]
+			argIdx++
+			l--
+		default:
+			break forLabel
+		}
+	}
+
 	if l != 5 && l != 7 {
 		usage()
 		return
@@ -39,7 +62,7 @@ func main() {
 
 	var driver dbDriver
 
-	switch os.Args[1] {
+	switch os.Args[argIdx] {
 	case "cassandra":
 		fmt.Println("Using Cassandra db driver...")
 		driver = newCassandraDriver(os.Args[2])
@@ -49,7 +72,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		driver = newPostgresDriver(host, port)
+		driver = newPostgresDriver(host, port, adminUser, adminPassword)
 	case "dryrun":
 		fmt.Println("Dryrun...")
 	default:
@@ -57,13 +80,13 @@ func main() {
 		return
 	}
 
-	dbName := os.Args[3]
-	initScriptsFolder := os.Args[4]
+	dbName := os.Args[argIdx+2]
+	initScriptsFolder := os.Args[argIdx+3]
 
 	var dbUser, dbPass string
 	if l == 7 {
-		dbUser = os.Args[5]
-		dbPass = os.Args[6]
+		dbUser = os.Args[argIdx+4]
+		dbPass = os.Args[argIdx+5]
 	}
 
 	if driver != nil {
