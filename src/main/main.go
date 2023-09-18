@@ -41,15 +41,19 @@ func main() {
 	argIdx := 1
 forLabel:
 	for {
+		if len(os.Args) < argIdx+2 {
+			usage()
+			return
+		}
 		switch os.Args[argIdx] {
 		case "/adminUser":
-			adminUser = &os.Args[argIdx]
-			argIdx++
-			l--
+			adminUser = &os.Args[argIdx+1]
+			argIdx += 2
+			l -= 2
 		case "/adminPassword":
-			adminPassword = &os.Args[argIdx]
-			argIdx++
-			l--
+			adminPassword = &os.Args[argIdx+1]
+			argIdx += 2
+			l -= 2
 		default:
 			break forLabel
 		}
