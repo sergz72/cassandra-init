@@ -71,7 +71,7 @@ func (d *postgresDriver) CreateDatabase(dbName string, dbUser string, dbPass str
 	if err != nil {
 		return err
 	}
-	err = d.Exec(preprocess(dbName, dbUser, dbPass, "CREATE DATABASE ${DB_NAME} WITH OWNER = postgres ENCODING = \"UTF8\" CONNECTION LIMIT = -1"))
+	err = d.Exec(preprocess(dbName, dbUser, dbPass, fmt.Sprintf("CREATE DATABASE ${DB_NAME} WITH OWNER = %v ENCODING = \"UTF8\" CONNECTION LIMIT = -1", d.adminUser)))
 	if err != nil {
 		return err
 	}
